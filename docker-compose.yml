@@ -33,6 +33,13 @@ services:
       # start_period: 1s
       interval: 5s
 
+  storage:
+    image: minio/minio
+    container_name: storage
+    ports:
+      - 9000:9000
+      - 9001:9001
+    command: server /data --console-address ":9001"
 volumes:
   synapse_postgresdata:
   miniodata:
