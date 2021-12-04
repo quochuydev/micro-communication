@@ -1,0 +1,40 @@
+version: '3.3'
+
+services:
+  synapse:
+    image: "matrixdotorg/synapse:v1.33.1"
+    container_name: "synapse"
+    ports:
+      - "8009:8008"
+    volumes:
+      - "./synapse-data:/data"
+    environment:
+      SYNAPSE_SERVER_NAME: "homeserver.localhost"
+      SYNAPSE_REPORT_STATS: "yes"
+    depends_on:
+      synapse_postgresql:
+        condition: service_healthy
+    # command: generate
+      
+  synapse_postgresql:
+    image: postgres:latest
+    container_name: "synapse_postgresql"
+    restart: always
+    environment:
+      POSTGRES_PASSWORD: 1
+      POSTGRES_USER: synapse
+      POSTGRES_DB: synapse
+      POSTGRES_INITDB_ARGS: "--encoding='UTF8' --lc-collate='C' --lc-ctype='C'"
+    volumes:
+      - "synapse_postgresdata:/var/lib/postgresql/"
+      # - "./synapse-data/init.sql:/docker-entrypoint-initdb.d/init.sql"
+    healthcheck:
+      test: "psql -U synapse -d synapse -c \"SELECT 1 FROM pg_constraint WHERE conname = 'ui_auth_sessions_ips_session_id_fkey'\""
+      start_period: 1s
+      interval: 5s
+
+volumes:
+  synapse_postgresdata:
+  miniodata:
+
+# sudo docker run -it --rm --mount type=volume,src=synapse-config,dst=/data -e SYNAPSE_SERVER_NAME=my.matrix.host -e SYNAPSE_REPORT_STATS=yes matrixdotorg/synapse:latest generate
