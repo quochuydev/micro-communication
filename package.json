@@ -7,7 +7,7 @@
     "express": "^4.17.1"
   },
   "scripts": {
-    "start:nginx": "nginx -c \"$(pwd)/nginx.conf\"",
+    "start:nginx": "sudo nginx -c \"$(pwd)/nginx.conf\"",
     "start": "node index.js"
   }
 }
