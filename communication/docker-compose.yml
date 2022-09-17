@@ -1,9 +1,9 @@
 version: "3.3"
 
 services:
-  synapse:
+  matrix:
     image: "matrixdotorg/synapse"
-    container_name: "synapse"
+    container_name: "matrix"
     ports:
       - "8009:8008"
     volumes:
@@ -12,35 +12,35 @@ services:
       SYNAPSE_SERVER_NAME: "homeserver.localhost"
       SYNAPSE_REPORT_STATS: "yes"
     depends_on:
-      - "synapse_postgresql"
+      - "matrix_postgresql"
     # condition: service_healthy
     # command: generate
 
-  synapse_postgresql:
+  matrix_postgresql:
     image: postgres:11-alpine
-    container_name: "synapse_postgresql"
+    container_name: "matrix_postgresql"
     restart: always
-    ports:
-      - "5432:5432"
+    # ports:
+    #   - "5532:5432"
     environment:
       POSTGRES_PASSWORD: 1
       POSTGRES_USER: synapse
       POSTGRES_DB: synapse
       POSTGRES_INITDB_ARGS: "--encoding='UTF8' --lc-collate='C' --lc-ctype='C'"
-    volumes:
-      - "synapse_postgresdata:/var/lib/postgresql/"
     healthcheck:
       test: 'psql -U synapse -d synapse -c "SELECT 1 FROM pg_constraint WHERE conname = ''ui_auth_sessions_ips_session_id_fkey''"'
       # start_period: 1s
       interval: 5s
+    volumes:
+      - "synapse_postgresdata:/var/lib/postgresql/"
 
   storage:
     image: minio/minio
     container_name: storage
     ports:
-      - 9000:9000
-      - 9001:9001
-    command: server /data --console-address ":9001"
+      - 9010:9000
+      - 9011:9001
+    command: server /data --console-address ":9011"
 volumes:
   synapse_postgresdata:
   miniodata:

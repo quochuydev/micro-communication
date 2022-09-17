@@ -770,7 +770,7 @@ database:
    user: synapse
    password: 1
    database: synapse
-   host: synapse_postgresql
+   host: matrix_postgresql
    port: 5432
    cp_min: 5
    cp_max: 10
@@ -1170,6 +1170,7 @@ oembed:
 # Enable registration for new users.
 #
 enable_registration: true
+enable_registration_without_verification: true
 
 # Time that a user's session remains valid for, after they log in.
 #

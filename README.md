@@ -1,1 +1,3 @@
 # micro-chat
+
+start all

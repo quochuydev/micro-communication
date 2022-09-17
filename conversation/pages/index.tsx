@@ -1,4 +1,7 @@
 import React, { useEffect, useState } from "react";
+import { v4 as uuidv4 } from "uuid";
+
+const sessionId = uuidv4();
 
 export default function Home() {
   const [token, setToken] = useState();
@@ -9,10 +12,12 @@ export default function Home() {
   const [selectedRoomId, setSelectedRoomId] = useState();
   const [selectedRoom, setSelectedRoom] = useState<any>(null);
 
-  function register() {
+  async function register() {
     console.log("register");
 
-    fetch("https://admin.local/_matrix/client/r0/register", {
+    const deviceId = uuidv4();
+
+    await fetch("https://careprovider.local/_matrix/client/r0/register", {
       method: "post",
       headers: {
         "Content-Type": "application/json",
@@ -20,6 +25,7 @@ export default function Home() {
       body: JSON.stringify({
         username: "admin",
         password: "admin",
+        device_id: deviceId,
         auth: {
           type: "m.login.dummy",
         },
@@ -32,7 +38,7 @@ export default function Home() {
   function login() {
     console.log("login");
 
-    fetch("https://admin.local/_matrix/client/r0/login", {
+    fetch("https://careprovider.local/_matrix/client/r0/login", {
       method: "post",
       headers: {
         "Content-Type": "application/json",
@@ -47,30 +53,82 @@ export default function Home() {
       .then((res) => {
         console.log(res);
         setToken(res.access_token);
+
+        localStorage.setItem("deviceId", res.device_id);
+        localStorage.setItem("userId", res.user_id);
       });
   }
 
-  function sync() {
+  async function sync() {
     console.log("sync");
 
-    fetch("https://admin.local/_matrix/client/r0/sync?access_token=" + token)
+    fetch(
+      "https://careprovider.local/_matrix/client/r0/sync?access_token=" + token
+    )
       .then((res) => res.json())
-      .then((res) => {
-        console.log(res);
-        setSyncData(res);
-
+      .then(async (res) => {
         const room = res?.rooms?.join || {};
+        console.log(room);
 
         const roomsData = Object.keys(room).map((roomId) => ({
           roomId,
           messages: room[roomId]?.timeline?.events.filter(
-            (event: any) => event.type === "m.room.message"
+            (event: any) =>
+              event.type === "m.room.message" ||
+              event.type === "m.room.encrypted"
           ),
         }));
 
-        console.log({ roomsData });
+        const olm = global.Olm;
+        await olm.init();
 
-        setRooms(roomsData);
+        const olmInboundGroupSession = new olm.InboundGroupSession();
+
+        const resultRoomsData = await Promise.all(
+          roomsData.map(async (e) => ({
+            ...e,
+            messages: await Promise.all(
+              e.messages.map(async (message: any, index: number) => {
+                try {
+                  if (message.type === "m.room.encrypted") {
+                    const plaintext = olmInboundGroupSession.decrypt(
+                      message.content.ciphertext
+                    );
+
+                    console.log(plaintext);
+
+                    return {
+                      content: {
+                        index,
+                        body: "ciphertext",
+                      },
+                    };
+                  }
+
+                  return {
+                    content: {
+                      index,
+                      body: "m.text",
+                    },
+                  };
+                } catch (error: any) {
+                  return {
+                    content: {
+                      index,
+                      body: JSON.stringify(error.message),
+                    },
+                  };
+                }
+              })
+            ),
+          }))
+        );
+
+        console.log({ resultRoomsData });
+
+        olmInboundGroupSession.free();
+
+        setRooms(resultRoomsData);
       });
   }
 
@@ -78,7 +136,7 @@ export default function Home() {
     console.log("createRoom");
 
     fetch(
-      `https://admin.local/_matrix/client/r0/createRoom?access_token=${token}`,
+      `https://careprovider.local/_matrix/client/r0/createRoom?access_token=${token}`,
       {
         method: "post",
         headers: {
@@ -96,21 +154,81 @@ export default function Home() {
       });
   }
 
-  function sendMessage() {
+  async function encrypt({ roomId, plaintext }: any) {
+    const deviceId = localStorage.getItem("deviceId");
+    localStorage.getItem("userId");
+
+    const olm = global.Olm;
+    await olm.init();
+
+    const olmAccount = new olm.Account();
+
+    const { ed25519, curve25519 } = JSON.parse(olmAccount.identity_keys());
+
+    const currentDevice = {
+      id: deviceId,
+      fingerprintKey: ed25519,
+      identityKey: curve25519,
+      verification: 1,
+    };
+
+    console.log({ deviceId, ed25519, curve25519 });
+
+    console.log({ sessionId });
+
+    // const olmSession = new olm.Session();
+    const olmOutboundGroupSession = new olm.OutboundGroupSession();
+
+    const ciphertext = olmOutboundGroupSession.encrypt(plaintext);
+    console.log(2222, ciphertext);
+
+    // await olmSession.free();
+
+    return {
+      room_id: roomId,
+      session_id: sessionId,
+      device_id: currentDevice.id,
+      sender_key: currentDevice.identityKey,
+      algorithm: "m.megolm.v1.aes-sha2",
+      ciphertext,
+    };
+  }
+
+  async function sendMessage() {
     console.log("sendMessage");
 
+    // fetch(
+    //   `https://careprovider.local/_matrix/client/r0/rooms/${selectedRoomId}/send/m.room.message?access_token=${token}&room_alias_name=tutorial`,
+    //   {
+    //     method: "put",
+    //     headers: {
+    //       "Content-Type": "application/json",
+    //     },
+    //     body: JSON.stringify({
+    //       msgtype: "m.text",
+    //       body: "hello",
+    //       event_id: Date.now(),
+    //     }),
+    //   }
+    // )
+    //   .then((res) => res.json())
+    //   .then((res) => console.log(res));
+
+    const transactionId = uuidv4();
+
     fetch(
-      `https://admin.local/_matrix/client/r0/rooms/${selectedRoomId}/send/m.room.message?access_token=${token}&room_alias_name=tutorial`,
+      `https://careprovider.local/_matrix/client/r0/rooms/${selectedRoomId}/send/${"m.room.encrypted"}/${transactionId}?access_token=${token}&room_alias_name=tutorial`,
       {
-        method: "get",
+        method: "put",
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({
-          msgtype: "m.text",
-          body: "hello",
-          event_id: "YUwRidLecu",
-        }),
+        body: JSON.stringify(
+          await encrypt({
+            roomId: selectedRoomId,
+            plaintext: "hello sent a encrypted message",
+          })
+        ),
       }
     )
       .then((res) => res.json())
@@ -120,7 +238,7 @@ export default function Home() {
   function getRoomEvents() {
     console.log("login");
 
-    fetch("https://admin.local/_matrix/client/r0/login", {
+    fetch("https://careprovider.local/_matrix/client/r0/login", {
       method: "post",
       headers: {
         "Content-Type": "application/json",
@@ -147,13 +265,11 @@ export default function Home() {
       return;
     }
 
-    fetch(
-      `https://admin.local/_matrix/client/r0/rooms/${selectedRoomId}/state?access_token=${token}`
-    )
-      .then((res) => res.json())
-      .then((res) => {
-        console.log("selectedRoomId", res);
-      });
+    // fetch(
+    //   `https://careprovider.local/_matrix/client/r0/rooms/${selectedRoomId}/state?access_token=${token}`
+    // ).then((res) => res.json());
+
+    sync();
   }, [selectedRoomId]);
 
   return (
@@ -170,7 +286,7 @@ export default function Home() {
           <ul>
             {rooms.map((room: any, i: number) => (
               <li key={i}>
-                {room.roomId}{" "}
+                {room.roomId}
                 <button
                   onClick={() => {
                     setSelectedRoomId(room.roomId);
@@ -198,6 +314,8 @@ export default function Home() {
               {!selectedRoom && <p>Select a room</p>}
 
               <ul className="space-y-2">
+                {JSON.stringify(selectedRoom?.messages?.length)}
+
                 {selectedRoom?.messages.map((message: any, i: any) => (
                   <li className="flex justify-end" key={i}>
                     <div className="relative max-w-xl px-4 py-2 text-gray-700 bg-gray-100 rounded shadow">

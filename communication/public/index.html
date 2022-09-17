@@ -1,8 +1,8 @@
 qwe
 
 <script>
-  fetch("https://admin.local/_matrix/client/r0/sync");
-  fetch("https://admin.local/_matrix/client/r0/register", {
+  fetch("https://careprovider.local/_matrix/client/r0/sync");
+  fetch("https://careprovider.local/_matrix/client/r0/register", {
     method: "post",
     headers: {
       "Content-Type": "application/json",
@@ -16,9 +16,9 @@ qwe
     }),
   });
 
-  fetch("https://admin.local/_matrix/client/r0/login");
+  fetch("https://careprovider.local/_matrix/client/r0/login");
 
-  fetch("https://admin.local/_matrix/client/r0/login", {
+  fetch("https://careprovider.local/_matrix/client/r0/login", {
     method: "post",
     headers: {
       "Content-Type": "application/json",
