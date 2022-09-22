@@ -1,14 +1,11 @@
 import React, { useEffect, useState } from "react";
 import { v4 as uuidv4 } from "uuid";
-
-const sessionId = uuidv4();
+import VideoCall from "../components/VideoCall";
 
 export default function Home() {
   const [token, setToken] = useState();
   const [roomId, setRoomId] = useState();
   const [rooms, setRooms] = useState<any>([]);
-  const [roomEvents, setRoomEvents] = useState();
-  const [syncData, setSyncData] = useState();
   const [selectedRoomId, setSelectedRoomId] = useState();
   const [selectedRoom, setSelectedRoom] = useState<any>(null);
 
@@ -68,6 +65,7 @@ export default function Home() {
       .then((res) => res.json())
       .then(async (res) => {
         const room = res?.rooms?.join || {};
+        console.log("res", res);
         console.log(room);
 
         const roomsData = Object.keys(room).map((roomId) => ({
@@ -83,6 +81,67 @@ export default function Home() {
         await olm.init();
 
         const olmInboundGroupSession = new olm.InboundGroupSession();
+        const olmAccount = new olm.Account();
+
+        const sessionByInbound = olmInboundGroupSession.session_id();
+
+        const deviceId = localStorage.getItem("deviceId");
+        const userId = localStorage.getItem("userId");
+        const sessionId = localStorage.getItem("sessionId");
+        const firstKnownIndex = olmInboundGroupSession.first_known_index();
+
+        let currentDeviceString = localStorage.getItem("currentDevice");
+
+        let currentDevice = !!currentDeviceString
+          ? JSON.parse(currentDeviceString)
+          : null;
+
+        console.log("currentDevice", currentDevice);
+        console.log("sessionByInbound", sessionByInbound);
+        console.log("sessionId", sessionId);
+        console.log("firstKnownIndex", firstKnownIndex);
+        // console.log("pickedInboundGroupSession", pickedInboundGroupSession);
+
+        // const maxNumberOfOneTimeKeys = olmAccount.max_number_of_one_time_keys();
+        // console.log({ maxNumberOfOneTimeKeys });
+
+        await olmAccount.generate_one_time_keys(20);
+
+        const oneTimeKeys = JSON.parse(olmAccount.one_time_keys());
+
+        console.log({ oneTimeKeys });
+
+        const _signOneTimeKeys: any = {};
+
+        for (const [keyName, value] of Object.entries(oneTimeKeys.curve25519)) {
+          const signedKey = olmAccount.sign(JSON.stringify({ key: value }));
+
+          _signOneTimeKeys[`signed_curve25519:${keyName}`] = {
+            key: value,
+            signatures: {
+              [userId as string]: {
+                [`ed25519:${deviceId}`]: signedKey,
+              },
+            },
+          };
+        }
+
+        console.log("_signOneTimeKeys", _signOneTimeKeys);
+
+        await fetch(
+          `https://careprovider.local/_matrix/client/r0/keys/upload?access_token=${token}`,
+          {
+            method: "post",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              one_time_keys: _signOneTimeKeys,
+            }),
+          }
+        ).then((res) => res.json());
+
+        await olmAccount.mark_keys_as_published();
 
         const resultRoomsData = await Promise.all(
           roomsData.map(async (e) => ({
@@ -91,11 +150,33 @@ export default function Home() {
               e.messages.map(async (message: any, index: number) => {
                 try {
                   if (message.type === "m.room.encrypted") {
+                    let pickedInboundGroupSession = localStorage.getItem(
+                      "pickedInboundGroupSession"
+                    );
+
+                    if (pickedInboundGroupSession) {
+                      olmInboundGroupSession.unpickle(
+                        "DEFAULT_KEY",
+                        pickedInboundGroupSession
+                      );
+                    }
+
+                    const senderCurve25519Key = currentDevice.identityKey;
+
+                    console.log({ senderCurve25519Key });
+
+                    // TODO
+
                     const plaintext = olmInboundGroupSession.decrypt(
                       message.content.ciphertext
                     );
 
                     console.log(plaintext);
+
+                    localStorage.setItem(
+                      "pickedInboundGroupSession",
+                      olmInboundGroupSession.pickle("DEFAULT_KEY")
+                    );
 
                     return {
                       content: {
@@ -156,7 +237,7 @@ export default function Home() {
 
   async function encrypt({ roomId, plaintext }: any) {
     const deviceId = localStorage.getItem("deviceId");
-    localStorage.getItem("userId");
+    const userId = localStorage.getItem("userId");
 
     const olm = global.Olm;
     await olm.init();
@@ -165,26 +246,40 @@ export default function Home() {
 
     const { ed25519, curve25519 } = JSON.parse(olmAccount.identity_keys());
 
-    const currentDevice = {
-      id: deviceId,
-      fingerprintKey: ed25519,
-      identityKey: curve25519,
-      verification: 1,
-    };
+    let sessionId = localStorage.getItem("sessionId") as string;
+
+    if (!sessionId) {
+      sessionId = uuidv4();
+
+      localStorage.setItem("sessionId", sessionId);
+    }
+
+    let currentDeviceString = localStorage.getItem("currentDevice");
+
+    let currentDevice = !!currentDeviceString
+      ? JSON.parse(currentDeviceString)
+      : null;
+
+    if (!currentDevice) {
+      currentDevice = {
+        id: deviceId,
+        fingerprintKey: ed25519,
+        identityKey: curve25519,
+        verification: 1,
+      };
+
+      localStorage.setItem("currentDevice", JSON.stringify(currentDevice));
+    }
 
     console.log({ deviceId, ed25519, curve25519 });
 
     console.log({ sessionId });
 
-    // const olmSession = new olm.Session();
     const olmOutboundGroupSession = new olm.OutboundGroupSession();
 
     const ciphertext = olmOutboundGroupSession.encrypt(plaintext);
-    console.log(2222, ciphertext);
 
-    // await olmSession.free();
-
-    return {
+    const data = {
       room_id: roomId,
       session_id: sessionId,
       device_id: currentDevice.id,
@@ -192,6 +287,10 @@ export default function Home() {
       algorithm: "m.megolm.v1.aes-sha2",
       ciphertext,
     };
+
+    console.log(data);
+
+    return data;
   }
 
   async function sendMessage() {
@@ -269,11 +368,16 @@ export default function Home() {
     //   `https://careprovider.local/_matrix/client/r0/rooms/${selectedRoomId}/state?access_token=${token}`
     // ).then((res) => res.json());
 
-    sync();
+    // sync();
   }, [selectedRoomId]);
 
   return (
     <div className="container mx-auto">
+      <br />
+      <VideoCall />
+      <br />
+      <br />
+      <br />
       <button onClick={register}>register</button>|
       <button onClick={sync}>sync</button>|
       <button onClick={login}>login</button>|
