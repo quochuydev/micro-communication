@@ -5,8 +5,8 @@ export default function Component(props: {
   onSubmit: (params: { username: string; password: string }) => void;
   onClose: () => void;
 }) {
-  const [username, setUsername] = useState("");
-  const [password, setPassword] = useState("");
+  const [username, setUsername] = useState("test1752");
+  const [password, setPassword] = useState("test1752");
 
   if (!props.isOpen) return null;
 

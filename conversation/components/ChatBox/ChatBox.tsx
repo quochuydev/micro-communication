@@ -13,47 +13,86 @@ import { sendRequest } from "../../helpers/api-caller";
 export default function ChatBox() {
   const olm = global.Olm;
   const [client, setClient] = useState<sdk.MatrixClient>();
-  const [token, setToken] = useState();
   const [rooms, setRooms] = useState<sdk.Room[]>([]);
   const [selectedRoom, setSelectedRoom] = useState<sdk.Room>();
   const [isRegistering, setIsRegistering] = useState(false);
   const [isLogin, setIsLogin] = useState(false);
+  const [loginInfo, setLoginInfo] = useState<{
+    accessToken: string;
+    userId: string;
+  }>();
+
   const toastRef = useRef<ToastType>();
 
   useEffect(() => {
-    if (olm) {
-      olm.init();
+    console.log(localStorage.getItem("accessToken"));
+    console.log(localStorage.getItem("userId"));
+
+    if (localStorage.getItem("accessToken") && localStorage.getItem("userId")) {
+      setLoginInfo({
+        accessToken: localStorage.getItem("accessToken") as string,
+        userId: localStorage.getItem("userId") as string,
+      });
     }
-  }, [olm]);
-
-  useEffect(() => {
-    let _client = sdk.createClient({
-      baseUrl: `http://localhost:8088/_matrix`,
-    });
-
-    // console.log("_client", _client);
-
-    setClient(_client);
   }, []);
 
   useEffect(() => {
-    if (token) {
-      console.log("token", token);
+    if (!loginInfo) {
+      return;
     }
-  }, [token]);
+
+    const _client = sdk.createClient({
+      baseUrl: `http://localhost:8088`,
+      accessToken: loginInfo.accessToken,
+      userId: loginInfo.userId,
+    });
+
+    _client.startClient({ initialSyncLimit: 200 }).then(() => {
+      console.log("connected");
+
+      _client.on("Room", function () {
+        const roomMap = _client.getRooms();
+        setRooms(() => [...roomMap]);
+      });
+
+      _client.on("Room.timeline", function (event) {
+        if (event.event.type === "m.room.message") {
+          console.log("event", event.event.type);
+        }
+      });
+
+      setClient(_client);
+    });
+  }, [loginInfo?.accessToken]);
 
   return (
     <div className="container mx-auto">
       <div className="max-w-2xl border rounded">
-        <RoomList rooms={rooms} />
+        <RoomList
+          rooms={rooms}
+          onSelectRoom={(room) => setSelectedRoom(room)}
+        />
 
         <div>
           <div className="w-full">
             <div className="container mx-auto">
               <div className="max-w-2xl border rounded">
                 <div className="relative flex items-center p-3 border-b border-gray-300">
-                  <Profile />
-                  <CreateRoom />
+                  <Profile client={client} />
+                  <CreateRoom
+                    onCreateRoom={async (name) => {
+                      const room = await sendRequest("http://localhost:8088", {
+                        url: "_matrix/client/r0/createRoom",
+                        method: "post",
+                        query: {
+                          access_token: loginInfo.accessToken,
+                        },
+                        data: {
+                          name,
+                        },
+                      });
+                    }}
+                  />
                 </div>
 
                 <div className="relative flex items-center p-3 border-b border-gray-300">
@@ -105,25 +144,47 @@ export default function ChatBox() {
                     isOpen={isLogin}
                     onSubmit={async (params) => {
                       try {
-                        const result = await sendRequest(
-                          "http://localhost:8088",
-                          {
-                            url: "_matrix/client/r0/login",
-                            method: "post",
-                            data: {
-                              user: params.username,
-                              password: params.password,
-                              type: "m.login.password",
-                            },
-                          }
-                        );
+                        const result = await sendRequest<{
+                          url: "_matrix/client/r0/login";
+                          method: "post";
+                          data: {
+                            user: string;
+                            password: string;
+                            type: "m.login.password";
+                          };
+                          result: {
+                            user_id: string;
+                            access_token: string;
+                            device_id: string;
+                            home_server: string;
+                          };
+                        }>("http://localhost:8088", {
+                          url: "_matrix/client/r0/login",
+                          method: "post",
+                          data: {
+                            user: params.username,
+                            password: params.password,
+                            type: "m.login.password",
+                          },
+                        });
 
                         toastRef.current?.show({
                           intent: "success",
                           message: "Successfully",
                         });
 
-                        setToken(result.access_token);
+                        setLoginInfo({
+                          accessToken: result.access_token,
+                          userId: result.user_id,
+                        });
+
+                        localStorage.setItem(
+                          "accessToken",
+                          result.access_token
+                        );
+
+                        localStorage.setItem("userId", result.user_id);
+
                         setIsLogin(false);
                       } catch (error) {
                         console.log("error", error);
@@ -142,12 +203,28 @@ export default function ChatBox() {
               </div>
             </div>
 
-            <Messages />
-            <ChatInput
-              onSendMessage={(text) => {
-                console.log("text", text);
-              }}
-            />
+            {!!client && !!selectedRoom && (
+              <>
+                <Messages room={selectedRoom} client={client} />
+
+                <ChatInput
+                  onSendMessage={async (text) => {
+                    console.log("text", text);
+
+                    const result = await client.sendEvent(
+                      selectedRoom.roomId,
+                      "m.room.message",
+                      {
+                        body: text,
+                        msgtype: "m.text",
+                      }
+                    );
+
+                    console.log("result", result);
+                  }}
+                />
+              </>
+            )}
           </div>
         </div>
       </div>

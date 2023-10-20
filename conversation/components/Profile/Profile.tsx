@@ -1,7 +1,7 @@
 import React from "react";
 import * as sdk from "matrix-js-sdk";
 
-export default function CreateRoom(props) {
+export default function CreateRoom({ client }: { client: sdk.MatrixClient }) {
   return (
     <>
       <img
@@ -10,7 +10,9 @@ export default function CreateRoom(props) {
         // src="#"
       />
       <span className="block ml-2 font-bold text-gray-600">Emma</span>
-      <span className="absolute w-3 h-3 bg-green-600 rounded-full left-10 top-3"></span>
+      {!!client && (
+        <span className="absolute w-3 h-3 bg-green-600 rounded-full left-10 top-3"></span>
+      )}
     </>
   );
 }
