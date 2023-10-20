@@ -5,7 +5,7 @@ services:
     image: "matrixdotorg/synapse"
     container_name: "matrix"
     ports:
-      - "8009:8008"
+      - "8088:8008"
     volumes:
       - "./synapse-data:/data"
     environment:

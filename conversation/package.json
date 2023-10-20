@@ -1,13 +1,15 @@
 {
   "private": true,
+  "license": "MIT",
   "scripts": {
-    "dev": "next dev",
+    "dev": "next dev --port=3333",
     "build": "next build",
     "start": "next start"
   },
   "dependencies": {
+    "@headlessui/react": "^1.7.17",
     "axios": "^0.27.2",
-    "matrix-js-sdk": "^19.5.0",
+    "clsx": "^2.0.0",
     "next": "latest",
     "react": "18.1.0",
     "react-dom": "18.1.0",

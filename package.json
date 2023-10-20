@@ -1,0 +1,9 @@
+{
+  "license": "MIT",
+  "dependencies": {
+    "@headlessui/react": "1.7.17",
+    "matrix-js-sdk": "29.0.0",
+    "olm": "https://packages.matrix.org/npm/olm/olm-3.1.5.tgz",
+    "uuid": "^9.0.1"
+  }
+}
