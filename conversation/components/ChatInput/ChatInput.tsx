@@ -1,10 +1,11 @@
 import React, { useState } from "react";
 
 export default function ChatInput(props: {
+  defaultText: string;
   onSendMessage: (text: string) => void;
 }) {
-  const { onSendMessage } = props;
-  const [text, setText] = useState("default text");
+  const { defaultText, onSendMessage } = props;
+  const [text, setText] = useState(defaultText);
 
   return (
     <div className="flex items-center justify-between w-full p-3 border-t border-gray-300">

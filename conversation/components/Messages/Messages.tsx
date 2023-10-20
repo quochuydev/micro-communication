@@ -1,23 +1,7 @@
 import React, { useEffect, useReducer, useState } from "react";
 import * as sdk from "matrix-js-sdk";
 
-export default function Messages({
-  room,
-  client,
-}: {
-  room: sdk.Room;
-  client: sdk.MatrixClient;
-}) {
-  const [, forceUpdate] = useReducer((x) => x + 1, 0);
-
-  useEffect(() => {
-    client.on("Room.timeline", function (event) {
-      if (event.event.type === "m.room.message") {
-        forceUpdate();
-      }
-    });
-  }, [room]);
-
+export default function Messages({ room }: { room: sdk.Room }) {
   return (
     <div className="relative w-full p-2 overflow-y-auto h-[40rem]">
       {!room && <p>Select a room</p>}

@@ -17,7 +17,7 @@ const intentMap: { [key in Intent]: string } = {
   warning: "bg-yellow-500",
 };
 
-const Toast = React.forwardRef((props, ref) => {
+const Toast = React.forwardRef((_, ref) => {
   const [state, setState] = useState<{
     message?: string | null;
     intent: Intent;
