@@ -1,4 +1,4 @@
-import React, { useEffect } from "react";
+import React, { useEffect, useReducer, useState } from "react";
 import * as sdk from "matrix-js-sdk";
 
 export default function Messages({
@@ -8,16 +8,13 @@ export default function Messages({
   room: sdk.Room;
   client: sdk.MatrixClient;
 }) {
+  const [, forceUpdate] = useReducer((x) => x + 1, 0);
+
   useEffect(() => {
-    if (!client) {
-      return;
-    }
-
-    console.log("room", room);
-    console.log("room", room.getLiveTimeline().getEvents());
-
-    client.roomState(room.roomId).then((state) => {
-      console.log(123123123, state);
+    client.on("Room.timeline", function (event) {
+      if (event.event.type === "m.room.message") {
+        forceUpdate();
+      }
     });
   }, [room]);
 
@@ -29,10 +26,11 @@ export default function Messages({
         {room
           .getLiveTimeline()
           .getEvents()
-          .map((message: any, i: any) => (
+          .filter((event) => event.event.type === "m.room.message")
+          .map((event: any, i: any) => (
             <li className="flex justify-end" key={i}>
               <div className="relative max-w-xl px-4 py-2 text-gray-700 bg-gray-100 rounded shadow">
-                <span className="block">{message.event.content.body}</span>
+                <span className="block">{event.event.content.body}</span>
               </div>
             </li>
           ))}

@@ -10,6 +10,11 @@ import Messages from "../Messages/Messages";
 import Toast, { ToastType } from "../Toast/Toast";
 import { sendRequest } from "../../helpers/api-caller";
 
+export type LoginInfo = {
+  accessToken: string;
+  userId: string;
+};
+
 export default function ChatBox() {
   const olm = global.Olm;
   const [client, setClient] = useState<sdk.MatrixClient>();
@@ -17,10 +22,8 @@ export default function ChatBox() {
   const [selectedRoom, setSelectedRoom] = useState<sdk.Room>();
   const [isRegistering, setIsRegistering] = useState(false);
   const [isLogin, setIsLogin] = useState(false);
-  const [loginInfo, setLoginInfo] = useState<{
-    accessToken: string;
-    userId: string;
-  }>();
+  const [showRoomList, setShowRoomList] = useState(false);
+  const [loginInfo, setLoginInfo] = useState<LoginInfo>();
 
   const toastRef = useRef<ToastType>();
 
@@ -55,12 +58,6 @@ export default function ChatBox() {
         setRooms(() => [...roomMap]);
       });
 
-      _client.on("Room.timeline", function (event) {
-        if (event.event.type === "m.room.message") {
-          console.log("event", event.event.type);
-        }
-      });
-
       setClient(_client);
     });
   }, [loginInfo?.accessToken]);
@@ -68,20 +65,16 @@ export default function ChatBox() {
   return (
     <div className="container mx-auto">
       <div className="max-w-2xl border rounded">
-        <RoomList
-          rooms={rooms}
-          onSelectRoom={(room) => setSelectedRoom(room)}
-        />
+        <div className="w-full">
+          <div className="container mx-auto">
+            <div className="max-w-2xl border rounded">
+              <div className="relative flex items-center p-3 border-b border-gray-300">
+                <Profile client={client} loginInfo={loginInfo} />
 
-        <div>
-          <div className="w-full">
-            <div className="container mx-auto">
-              <div className="max-w-2xl border rounded">
-                <div className="relative flex items-center p-3 border-b border-gray-300">
-                  <Profile client={client} />
+                {!!loginInfo && (
                   <CreateRoom
                     onCreateRoom={async (name) => {
-                      const room = await sendRequest("http://localhost:8088", {
+                      await sendRequest("http://localhost:8088", {
                         url: "_matrix/client/r0/createRoom",
                         method: "post",
                         query: {
@@ -93,139 +86,145 @@ export default function ChatBox() {
                       });
                     }}
                   />
-                </div>
-
-                <div className="relative flex items-center p-3 border-b border-gray-300">
-                  <button onClick={() => setIsLogin(!isLogin)}>Login</button>
-                  {"|"}
-                  <button onClick={() => setIsRegistering(!isRegistering)}>
-                    Register
-                  </button>
-                </div>
-
-                <div className="w-full">
-                  <Register
-                    isOpen={isRegistering}
-                    onSubmit={async (params) => {
-                      try {
-                        await sendRequest("http://localhost:8088", {
-                          url: "_matrix/client/r0/register",
-                          method: "post",
-                          data: {
-                            username: params.username,
-                            password: params.password,
-                            auth: {
-                              type: "m.login.dummy",
-                            },
-                          },
-                        });
-
-                        toastRef.current?.show({
-                          intent: "success",
-                          message: "Successfully",
-                        });
-
-                        setIsRegistering(false);
-                      } catch (error) {
-                        console.log("error", error);
-
-                        toastRef.current?.show({
-                          intent: "error",
-                          message: "Failed",
-                        });
-                      }
-                    }}
-                    onClose={() => {
-                      setIsRegistering(false);
-                    }}
-                  />
-
-                  <Login
-                    isOpen={isLogin}
-                    onSubmit={async (params) => {
-                      try {
-                        const result = await sendRequest<{
-                          url: "_matrix/client/r0/login";
-                          method: "post";
-                          data: {
-                            user: string;
-                            password: string;
-                            type: "m.login.password";
-                          };
-                          result: {
-                            user_id: string;
-                            access_token: string;
-                            device_id: string;
-                            home_server: string;
-                          };
-                        }>("http://localhost:8088", {
-                          url: "_matrix/client/r0/login",
-                          method: "post",
-                          data: {
-                            user: params.username,
-                            password: params.password,
-                            type: "m.login.password",
-                          },
-                        });
-
-                        toastRef.current?.show({
-                          intent: "success",
-                          message: "Successfully",
-                        });
-
-                        setLoginInfo({
-                          accessToken: result.access_token,
-                          userId: result.user_id,
-                        });
-
-                        localStorage.setItem(
-                          "accessToken",
-                          result.access_token
-                        );
-
-                        localStorage.setItem("userId", result.user_id);
-
-                        setIsLogin(false);
-                      } catch (error) {
-                        console.log("error", error);
-
-                        toastRef.current?.show({
-                          intent: "error",
-                          message: "Failed",
-                        });
-                      }
-                    }}
-                    onClose={() => {
-                      setIsLogin(false);
-                    }}
-                  />
-                </div>
+                )}
               </div>
-            </div>
 
-            {!!client && !!selectedRoom && (
-              <>
-                <Messages room={selectedRoom} client={client} />
+              <div className="relative flex items-center p-3 border-b border-gray-300">
+                <button onClick={() => setIsLogin(!isLogin)}>Login</button>
+                {"|"}
+                <button onClick={() => setIsRegistering(!isRegistering)}>
+                  Register
+                </button>
+                {"|"}
+                <button onClick={() => setShowRoomList(!showRoomList)}>
+                  Show room list
+                </button>
+              </div>
 
-                <ChatInput
-                  onSendMessage={async (text) => {
-                    console.log("text", text);
+              <div className="w-full">
+                <Register
+                  isOpen={isRegistering}
+                  onSubmit={async (params) => {
+                    try {
+                      await sendRequest("http://localhost:8088", {
+                        url: "_matrix/client/r0/register",
+                        method: "post",
+                        data: {
+                          username: params.username,
+                          password: params.password,
+                          auth: {
+                            type: "m.login.dummy",
+                          },
+                        },
+                      });
 
-                    const result = await client.sendEvent(
-                      selectedRoom.roomId,
-                      "m.room.message",
-                      {
-                        body: text,
-                        msgtype: "m.text",
-                      }
-                    );
+                      toastRef.current?.show({
+                        intent: "success",
+                        message: "Successfully",
+                      });
 
-                    console.log("result", result);
+                      setIsRegistering(false);
+                    } catch (error) {
+                      console.log("error", error);
+
+                      toastRef.current?.show({
+                        intent: "error",
+                        message: "Failed",
+                      });
+                    }
+                  }}
+                  onClose={() => {
+                    setIsRegistering(false);
                   }}
                 />
-              </>
-            )}
+
+                <Login
+                  isOpen={isLogin}
+                  onSubmit={async (params) => {
+                    try {
+                      const result = await sendRequest<{
+                        url: "_matrix/client/r0/login";
+                        method: "post";
+                        data: {
+                          user: string;
+                          password: string;
+                          type: "m.login.password";
+                        };
+                        result: {
+                          user_id: string;
+                          access_token: string;
+                          device_id: string;
+                          home_server: string;
+                        };
+                      }>("http://localhost:8088", {
+                        url: "_matrix/client/r0/login",
+                        method: "post",
+                        data: {
+                          user: params.username,
+                          password: params.password,
+                          type: "m.login.password",
+                        },
+                      });
+
+                      toastRef.current?.show({
+                        intent: "success",
+                        message: "Successfully",
+                      });
+
+                      setLoginInfo({
+                        accessToken: result.access_token,
+                        userId: result.user_id,
+                      });
+
+                      localStorage.setItem("accessToken", result.access_token);
+                      localStorage.setItem("userId", result.user_id);
+
+                      setIsLogin(false);
+                    } catch (error) {
+                      console.log("error", error);
+
+                      toastRef.current?.show({
+                        intent: "error",
+                        message: "Failed",
+                      });
+                    }
+                  }}
+                  onClose={() => {
+                    setIsLogin(false);
+                  }}
+                />
+
+                {showRoomList && (
+                  <RoomList
+                    rooms={rooms}
+                    onSelectRoom={(room) => {
+                      setSelectedRoom(room);
+                      setShowRoomList(false);
+                    }}
+                  />
+                )}
+              </div>
+            </div>
           </div>
+
+          {!!client && !!selectedRoom && (
+            <>
+              <Messages room={selectedRoom} client={client} />
+
+              <ChatInput
+                onSendMessage={async (text) => {
+                  await client.sendEvent(
+                    selectedRoom.roomId,
+                    "m.room.message",
+                    {
+                      body: text,
+                      msgtype: "m.text",
+                    }
+                  );
+                }}
+              />
+            </>
+          )}
         </div>
       </div>
 
