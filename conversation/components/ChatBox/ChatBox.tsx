@@ -15,7 +15,21 @@ export type LoginInfo = {
   userId: string;
 };
 
-export default function ChatBox() {
+export default function ChatBox({ box }: { box: number }) {
+  const setStorage = (params: { accessToken: string; userId: string }) => {
+    localStorage.setItem("accessToken", params.accessToken);
+    localStorage.setItem("userId", params.userId);
+  };
+
+  const getStorage = () => {
+    const storage = {
+      accessToken: localStorage.getItem("accessToken") as string,
+      userId: localStorage.getItem("userId") as string,
+    };
+
+    return storage;
+  };
+
   // const olm = global.Olm; //TODO
   const [client, setClient] = useState<sdk.MatrixClient>();
   const [rooms, setRooms] = useState<sdk.Room[]>([]);
@@ -30,13 +44,13 @@ export default function ChatBox() {
   const [, forceUpdate] = useReducer((x) => x + 1, 0);
 
   useEffect(() => {
-    console.log(localStorage.getItem("accessToken"));
-    console.log(localStorage.getItem("userId"));
+    const storage = getStorage();
+    console.log(storage);
 
-    if (localStorage.getItem("accessToken") && localStorage.getItem("userId")) {
+    if (storage.accessToken && storage.userId) {
       setLoginInfo({
-        accessToken: localStorage.getItem("accessToken") as string,
-        userId: localStorage.getItem("userId") as string,
+        accessToken: storage.userId,
+        userId: storage.userId,
       });
     }
   }, []);
@@ -86,8 +100,8 @@ export default function ChatBox() {
         const userIds = targetMembers.map((member) => member.userId);
         console.log("userIds", userIds);
 
-        const devInfoRes = await client.downloadKeys(userIds, false);
-        console.log("devInfoRes", devInfoRes);
+        const devices = await client.downloadKeys(userIds, false);
+        console.log("devices", devices);
       } catch (error) {
         console.log("debug", error);
       }
@@ -95,6 +109,12 @@ export default function ChatBox() {
 
     sendRoomKeys();
   }, [selectedRoom]);
+
+  const messageListRef = useRef<HTMLDivElement>();
+
+  const scrollToMessageListBottom = () => {
+    messageListRef.current?.scrollTo({ top: 0, behavior: "smooth" });
+  };
 
   return (
     <div className="container mx-auto">
@@ -199,8 +219,10 @@ export default function ChatBox() {
                         userId: result.user_id,
                       });
 
-                      localStorage.setItem("accessToken", result.access_token);
-                      localStorage.setItem("userId", result.user_id);
+                      setStorage({
+                        accessToken: result.access_token,
+                        userId: result.user_id,
+                      });
 
                       setIsLogin(false);
                     } catch (error) {
@@ -255,8 +277,8 @@ export default function ChatBox() {
           </div>
 
           {!!client && !!selectedRoom && (
-            <>
-              <Messages room={selectedRoom} />
+            <div>
+              <Messages room={selectedRoom} messageListRef={messageListRef} />
 
               <ChatInput
                 defaultText={"hello"}
@@ -265,13 +287,15 @@ export default function ChatBox() {
                     selectedRoom.roomId,
                     "m.room.message",
                     {
-                      body: `Bây giờ là ${new Date().toISOString()}`,
+                      body: `${text} - now: ${new Date().toISOString()}`,
                       msgtype: "m.text",
                     }
                   );
+
+                  scrollToMessageListBottom();
                 }}
               />
-            </>
+            </div>
           )}
         </div>
       </div>

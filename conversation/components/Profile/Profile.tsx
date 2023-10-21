@@ -30,6 +30,7 @@ export default function Profile({
           userInfo?.avatar_url ||
           "https://cdn.pixabay.com/photo/2018/01/15/07/51/woman-3083383__340.jpg"
         }
+        alt={userInfo?.displayname}
       />
 
       <span className="block ml-2 font-bold text-gray-600">

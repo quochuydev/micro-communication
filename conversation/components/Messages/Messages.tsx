@@ -1,9 +1,18 @@
-import React, { useEffect, useReducer, useState } from "react";
+import React, { LegacyRef, MutableRefObject } from "react";
 import * as sdk from "matrix-js-sdk";
 
-export default function Messages({ room }: { room: sdk.Room }) {
+export default function Messages({
+  room,
+  messageListRef,
+}: {
+  room: sdk.Room;
+  messageListRef: MutableRefObject<HTMLDivElement | undefined>;
+}) {
   return (
-    <div className="relative w-full p-2 overflow-y-auto h-[40rem]">
+    <div
+      className="relative w-full p-2 h-[40rem] flex flex-col-reverse overflow-y-auto"
+      ref={messageListRef as LegacyRef<HTMLDivElement>}
+    >
       {!room && <p>Select a room</p>}
 
       <ul className="space-y-2">

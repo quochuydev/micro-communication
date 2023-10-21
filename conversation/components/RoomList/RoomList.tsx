@@ -12,8 +12,7 @@ export default function RoomList(props: {
       <ul>
         {[...rooms].map((room, index) => (
           <li key={index}>
-            <p>{room.roomId}</p>
-
+            <p>{room.name}</p>
             <button onClick={() => props.onSelectRoom(room)}>Select</button>
           </li>
         ))}
