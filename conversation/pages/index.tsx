@@ -4,8 +4,8 @@ import ChatBox from "../components/ChatBox/ChatBox";
 export default function Home() {
   return (
     <div className="flex">
-      <ChatBox box={0} />
-      <ChatBox box={1} />
+      <ChatBox index={0} />
+      <ChatBox index={1} />
     </div>
   );
 }

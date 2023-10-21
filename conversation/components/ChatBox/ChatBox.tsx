@@ -15,16 +15,18 @@ export type LoginInfo = {
   userId: string;
 };
 
-export default function ChatBox({ box }: { box: number }) {
+const matrixUrl = `http://localhost:8088`;
+
+export default function ChatBox({ index = 0 }: { index: number }) {
   const setStorage = (params: { accessToken: string; userId: string }) => {
-    localStorage.setItem("accessToken", params.accessToken);
-    localStorage.setItem("userId", params.userId);
+    localStorage.setItem(`accessToken.${index}`, params.accessToken);
+    localStorage.setItem(`userId.${index}`, params.userId);
   };
 
   const getStorage = () => {
     const storage = {
-      accessToken: localStorage.getItem("accessToken") as string,
-      userId: localStorage.getItem("userId") as string,
+      accessToken: localStorage.getItem(`accessToken.${index}`) as string,
+      userId: localStorage.getItem(`userId.${index}`) as string,
     };
 
     return storage;
@@ -49,7 +51,7 @@ export default function ChatBox({ box }: { box: number }) {
 
     if (storage.accessToken && storage.userId) {
       setLoginInfo({
-        accessToken: storage.userId,
+        accessToken: storage.accessToken,
         userId: storage.userId,
       });
     }
@@ -61,7 +63,7 @@ export default function ChatBox({ box }: { box: number }) {
     }
 
     const _client = sdk.createClient({
-      baseUrl: `http://localhost:8088`,
+      baseUrl: matrixUrl,
       accessToken: loginInfo.accessToken,
       userId: loginInfo.userId,
     });
@@ -149,7 +151,7 @@ export default function ChatBox({ box }: { box: number }) {
                   isOpen={isRegistering}
                   onSubmit={async (params) => {
                     try {
-                      await sendRequest("http://localhost:8088", {
+                      await sendRequest(matrixUrl, {
                         url: "_matrix/client/r0/register",
                         method: "post",
                         data: {
@@ -199,7 +201,7 @@ export default function ChatBox({ box }: { box: number }) {
                           device_id: string;
                           home_server: string;
                         };
-                      }>("http://localhost:8088", {
+                      }>(matrixUrl, {
                         url: "_matrix/client/r0/login",
                         method: "post",
                         data: {
@@ -252,7 +254,7 @@ export default function ChatBox({ box }: { box: number }) {
                 {showCreateRoomForm && !!loginInfo && (
                   <NewRoom
                     onNewRoom={async ({ roomName, usersInvited }) => {
-                      await sendRequest("http://localhost:8088", {
+                      await sendRequest(matrixUrl, {
                         url: "_matrix/client/r0/createRoom",
                         method: "post",
                         query: {
@@ -303,8 +305,4 @@ export default function ChatBox({ box }: { box: number }) {
       <Toast ref={toastRef} />
     </div>
   );
-}
-
-function getISOTime() {
-  return new Date().toISOString();
 }
