@@ -20,7 +20,7 @@ export default function RoomList(props: {
               className={`block w-3 h-3 mx-2 rounded-full ${
                 room.getMember(loginInfo.userId)?.membership === "join"
                   ? "bg-green-600"
-                  : "bg-green-600"
+                  : "bg-red-600"
               }`}
             />
 

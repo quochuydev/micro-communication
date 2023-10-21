@@ -124,9 +124,7 @@ export default function ChatBox({ index = 0 }: { index: number }) {
         <div className="w-full">
           <div className="container mx-auto">
             <div className="max-w-2xl border rounded">
-              <div className="relative flex items-center p-3 border-b border-gray-300">
-                <Profile client={client} loginInfo={loginInfo} />
-              </div>
+              <Profile client={client} loginInfo={loginInfo} />
 
               <div className="relative flex items-center p-3 border-b border-gray-300">
                 <button onClick={() => setIsLogin(!isLogin)}>Login</button>
