@@ -34,7 +34,8 @@ export default function Profile({
       />
 
       <span className="block ml-2 font-bold text-gray-600">
-        {userInfo?.displayname || "No name ^^"}
+        {loginInfo?.userId}
+        {/* {userInfo?.displayname || "No name ^^"} */}
       </span>
 
       <span className="absolute w-3 h-3 bg-green-600 rounded-full left-10 top-3"></span>

@@ -241,10 +241,17 @@ export default function ChatBox({ index = 0 }: { index: number }) {
                   }}
                 />
 
-                {showRoomList && (
+                {showRoomList && !!loginInfo && (
                   <RoomList
+                    loginInfo={loginInfo}
                     rooms={rooms}
-                    onSelectRoom={(room) => {
+                    onSelectRoom={async (room) => {
+                      const member = room.getMember(loginInfo.userId);
+
+                      if (member?.membership === "invite") {
+                        await client?.joinRoom(room.roomId);
+                      }
+
                       setSelectedRoom(room);
                       setShowRoomList(false);
                     }}
@@ -254,7 +261,19 @@ export default function ChatBox({ index = 0 }: { index: number }) {
                 {showCreateRoomForm && !!loginInfo && (
                   <NewRoom
                     onNewRoom={async ({ roomName, usersInvited }) => {
-                      await sendRequest(matrixUrl, {
+                      const room = await sendRequest<{
+                        url: "_matrix/client/r0/createRoom";
+                        method: "post";
+                        query: {
+                          access_token: string;
+                        };
+                        data: {
+                          name: string;
+                        };
+                        result: {
+                          room_id: string;
+                        };
+                      }>(matrixUrl, {
                         url: "_matrix/client/r0/createRoom",
                         method: "post",
                         query: {
@@ -266,7 +285,34 @@ export default function ChatBox({ index = 0 }: { index: number }) {
                       });
 
                       if (usersInvited) {
-                        // TODO
+                        await sendRequest<{
+                          url: "/_matrix/client/v3/rooms/{roomId}/invite";
+                          method: "post";
+                          params: {
+                            roomId: string;
+                          };
+                          query: {
+                            access_token: string;
+                          };
+                          data: {
+                            reason: string;
+                            user_id: string;
+                          };
+                          result: void;
+                        }>(matrixUrl, {
+                          url: "/_matrix/client/v3/rooms/{roomId}/invite",
+                          method: "post",
+                          params: {
+                            roomId: room.room_id,
+                          },
+                          query: {
+                            access_token: loginInfo.accessToken,
+                          },
+                          data: {
+                            reason: "Welcome to the team!",
+                            user_id: usersInvited,
+                          },
+                        });
                       }
 
                       setShowCreateRoomForm(false);
@@ -278,9 +324,13 @@ export default function ChatBox({ index = 0 }: { index: number }) {
             </div>
           </div>
 
-          {!!client && !!selectedRoom && (
+          {!!client && !!selectedRoom && !!loginInfo && (
             <div>
-              <Messages room={selectedRoom} messageListRef={messageListRef} />
+              <Messages
+                loginInfo={loginInfo}
+                room={selectedRoom}
+                messageListRef={messageListRef}
+              />
 
               <ChatInput
                 defaultText={"hello"}
