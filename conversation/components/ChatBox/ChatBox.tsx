@@ -47,7 +47,6 @@ export default function ChatBox({ index = 0 }: { index: number }) {
 
   useEffect(() => {
     const storage = getStorage();
-    console.log(storage);
 
     if (storage.accessToken && storage.userId) {
       setLoginInfo({
@@ -239,7 +238,7 @@ export default function ChatBox({ index = 0 }: { index: number }) {
                   }}
                 />
 
-                {showRoomList && !!loginInfo && (
+                {showRoomList && !!loginInfo && !!client && (
                   <RoomList
                     loginInfo={loginInfo}
                     rooms={rooms}
@@ -247,7 +246,7 @@ export default function ChatBox({ index = 0 }: { index: number }) {
                       const member = room.getMember(loginInfo.userId);
 
                       if (member?.membership === "invite") {
-                        await client?.joinRoom(room.roomId);
+                        await client.joinRoom(room.roomId);
                       }
 
                       setSelectedRoom(room);
