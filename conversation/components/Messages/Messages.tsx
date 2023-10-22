@@ -22,21 +22,28 @@ export default function Messages({
         {room
           .getLiveTimeline()
           .getEvents()
-          .filter((event) => event.event.type === "m.room.message")
-          .map((event, index) => (
-            <li
-              key={index}
-              className={`flex ${
-                event.event.sender === loginInfo.userId
-                  ? "justify-end"
-                  : "justify-start"
-              }`}
-            >
-              <div className="relative max-w-xl px-4 py-2 text-gray-700 bg-gray-100 rounded shadow">
-                <span className="block">{event.event.content?.body}</span>
-              </div>
-            </li>
-          ))}
+          .map((event, index) => {
+            if (event.event.type === sdk.EventType.RoomMessage) {
+              return (
+                <li
+                  key={index}
+                  className={`flex ${
+                    event.event.sender === loginInfo.userId
+                      ? "justify-end"
+                      : "justify-start"
+                  }`}
+                >
+                  <div className="relative max-w-xl px-4 py-2 text-gray-700 bg-gray-100 rounded shadow">
+                    <span className="block">
+                      {event.event.type}: {event.event.content?.body}
+                    </span>
+                  </div>
+                </li>
+              );
+            }
+
+            return null;
+          })}
       </ul>
     </div>
   );

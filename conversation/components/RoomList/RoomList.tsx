@@ -10,7 +10,7 @@ export default function RoomList(props: {
   const { rooms, loginInfo } = props;
 
   return (
-    <div>
+    <div className="p-4">
       <ul>
         {[...rooms].map((room, index) => (
           <li key={index} className="flex items-center">

@@ -37,6 +37,7 @@ export default function Profile({
         <div className="ml-2">
           <p className="font-bold text-gray-600">{profile?.displayname}</p>
           <p className="text-sm">{loginInfo?.userId}</p>
+          <p className="text-sm">device: {loginInfo.deviceId}</p>
         </div>
 
         <span className="absolute w-3 h-3 bg-green-600 rounded-full left-10 top-3"></span>
